@@ -1,5 +1,5 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
-const qrcode = require('qrcode-terminal')
+const P = require('pino')
 
 const TABELA = `
 📱 *TABELA MEGAS PEDRO* 📱
@@ -14,31 +14,64 @@ const TABELA = `
 🔥 *TMcel*
 500MB - 30MT
 1GB - 45MT
+2.5GB - 80MT
+5GB - 130MT
+10GB - 220MT
 
-💳 Pagamento: M-Pesa / E-Mola
+🔥 *Movitel*
+500MB - 30MT
+1GB - 45MT
+2.5GB - 80MT
+5GB - 130MT
+
+Digite *tabela* para ver de novo
 `
 
-async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth')
-  const sock = makeWASocket({ auth: state, printQRInTerminal: true })
-  sock.ev.on('creds.update', saveCreds)
-  
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const m = messages[0]
-    if (!m.message || m.key.fromMe) return
-    const texto = (m.message.conversation || m.message.extendedTextMessage?.text || '').toLowerCase()
-    const from = m.key.remoteJid
+async function startBot() {
+    const { state, saveCreds } = await useMultiFileAuthState('auth')
+    
+    const sock = makeWASocket({
+        auth: state,
+        logger: P({ level: 'silent' }),
+        printQRInTerminal: false,
+        browser: ['Bot-Megas', 'Chrome', '1.0.0']
+    })
 
-    if (texto.includes('menu') || texto.includes('tabela') || texto === '1') {
-      await sock.sendMessage(from, { text: TABELA })
-    } else {
-      await sock.sendMessage(from, { text: `Olá! 👋\n${TABELA}\n\nDigite *1* para menu` })
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = '258841066314' // << TROCA AQUI PELO TEU NUMERO
+        setTimeout(async () => {
+            try {
+                const code = await sock.requestPairingCode(phoneNumber)
+                console.log(`SEU CODIGO DE PAREAMENTO: ${code}`)
+            } catch (e) {
+                console.log('Erro ao gerar codigo:', e)
+            }
+        }, 3000)
     }
-  })
 
-  sock.ev.on('connection.update', (u) => {
-    if (u.connection === 'close' && u.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) start()
-    if (u.connection === 'open') console.log('Bot conectado!')
-  })
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+            if (shouldReconnect) startBot()
+        } else if (connection === 'open') {
+            console.log('BOT MEGAS CONECTADO COM SUCESSO!')
+        }
+    })
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0]
+        if (!msg.message || msg.key.fromMe) return
+        const texto = (msg.message.conversation || msg.message.extendedTextMessage?.text || '').toLowerCase()
+        
+        if (texto === 'tabela' || texto === 'menu' || texto === 'megas' || texto === 'oi' || texto === 'ola') {
+            await sock.sendMessage(msg.key.remoteJid, { text: TABELA })
+        }
+        if (texto === 'ping') {
+            await sock.sendMessage(msg.key.remoteJid, { text: 'Pong! Bot Megas on 🔥' })
+        }
+    })
 }
-start()
+startBot()
