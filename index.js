@@ -1,16 +1,12 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys')
+require('http').createServer...
+const { default: makeWASocket, useMul...
 const P = require('pino')
-
-const TABELA = `
-📱 *TABELA MEGAS PEDRO* 📱
-
-🔥 *VODACOM*
+const TABELA = `  📋 *TABELA MEGAS PEDRO*    🔥 *VODACOM*
 500MB - 25MT
 1GB - 40MT
 2.5GB - 70MT
 5GB - 120MT
 10GB - 200MT
-
 🔥 *TMcel*
 500MB - 30MT
 1GB - 45MT
